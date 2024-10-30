@@ -19,7 +19,7 @@ export type QueryKey<
   Paths extends Record<string, Record<HttpMethod, {}>>,
   Method extends HttpMethod,
   Path extends PathsWithMethod<Paths, Method>,
-> = readonly [FetchClient<Paths>, Method, Path, MaybeOptionalInit<Paths[Path], Method>];
+> = readonly [FetchClient<Paths, MediaType>, Method, Path, MaybeOptionalInit<Paths[Path], Method>];
 
 export type QueryOptionsFunction<Paths extends Record<string, Record<HttpMethod, {}>>, Media extends MediaType> = <
   Method extends HttpMethod,
@@ -33,9 +33,8 @@ export type QueryOptionsFunction<Paths extends Record<string, Record<HttpMethod,
 >(
   method: Method,
   path: Path,
-  ...[init, options]: RequiredKeysOf<Init> extends never
-    ? [InitWithUnknowns<Init>?, Options?]
-    : [InitWithUnknowns<Init>, Options?]
+  init?: InitWithUnknowns<Init>,
+  options?: Options,
 ) => NoInfer<
   Omit<
     UseQueryOptions<Response["data"], Response["error"], Response["data"], QueryKey<Paths, Method, Path>>,
@@ -119,18 +118,17 @@ export default function createClient<Paths extends {}, Media extends MediaType =
     return data;
   };
 
-  const queryOptions: QueryOptionsFunction<Paths, Media> = (method, path, ...[init, options]) => ({
+  const queryOptions: QueryOptionsFunction<Paths, Media> = (method, path, init) => ({
     queryKey: [client, method, path, init as InitWithUnknowns<typeof init>] as const,
     queryFn,
-    ...options,
   });
 
   return {
     queryOptions,
     useQuery: (method, path, ...[init, options, queryClient]) =>
-      useQuery(queryOptions(method, path, init as InitWithUnknowns<typeof init>, options), queryClient),
+      useQuery({ ...queryOptions(method, path, init), ...options }, queryClient),
     useSuspenseQuery: (method, path, ...[init, options, queryClient]) =>
-      useSuspenseQuery(queryOptions(method, path, init as InitWithUnknowns<typeof init>, options), queryClient),
+      useSuspenseQuery({ ...queryOptions(method, path, init), ...options }, queryClient),
     useMutation: (method, path, options, queryClient) =>
       useMutation(
         {

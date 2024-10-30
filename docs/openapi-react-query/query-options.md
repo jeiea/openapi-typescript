@@ -96,7 +96,7 @@ export const $api = createClient(fetchClient);
 ## Api
 
 ```tsx
-const queryOptions = $api.queryOptions(method, path, options, queryOptions);
+const queryOptions = $api.queryOptions(method, path, options);
 ```
 
 **Arguments**
@@ -112,8 +112,6 @@ const queryOptions = $api.queryOptions(method, path, options, queryOptions);
   - The fetch options to use for the request.
   - Only required if the OpenApi schema requires parameters.
   - The options `params` are used as key. See [Query Keys](https://tanstack.com/query/latest/docs/framework/react/guides/query-keys) for more information.
-- `queryOptions`
-  - Additional query options to pass through.
 
 **Returns**
 
