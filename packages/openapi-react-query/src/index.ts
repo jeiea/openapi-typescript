@@ -26,16 +26,39 @@ export type QueryOptionsFunction<Paths extends Record<string, Record<HttpMethod,
   Path extends PathsWithMethod<Paths, Method>,
   Init extends MaybeOptionalInit<Paths[Path], Method>,
   Response extends Required<FetchResponse<Paths[Path][Method], Init, Media>>, // note: Required is used to avoid repeating NonNullable in UseQuery types
-  Options extends Omit<
-    UseQueryOptions<Response["data"], Response["error"], Response["data"], QueryKey<Paths, Method, Path>>,
-    "queryKey" | "queryFn"
-  >,
+  Options extends {
+    init: InitWithUnknowns<Init>;
+    transformInit?: (init: InitWithUnknowns<Init>) => InitWithUnknowns<Init>;
+    transformQueryOptions?: (options: {
+      queryKey: QueryKey<Paths, Method, Path>;
+      queryFn: Exclude<
+        UseQueryOptions<
+          Response["data"],
+          Response["error"],
+          Response["data"],
+          QueryKey<Paths, Method, Path>
+        >["queryFn"],
+        SkipToken | undefined
+      >;
+    }) => Omit<
+      UseQueryOptions<Response["data"], Response["error"], Response["data"], QueryKey<Paths, Method, Path>>,
+      "queryFn"
+    > & {
+      queryFn?: Exclude<
+        UseQueryOptions<
+          Response["data"],
+          Response["error"],
+          Response["data"],
+          QueryKey<Paths, Method, Path>
+        >["queryFn"],
+        SkipToken | undefined
+      >;
+    };
+  },
 >(
   method: Method,
   path: Path,
-  ...[init, options]: RequiredKeysOf<Init> extends never
-    ? [InitWithUnknowns<Init>?, Options?]
-    : [InitWithUnknowns<Init>, Options?]
+  options?: RequiredKeysOf<Init> extends never ? Partial<Options> : Options,
 ) => NoInfer<
   Omit<
     UseQueryOptions<Response["data"], Response["error"], Response["data"], QueryKey<Paths, Method, Path>>,
@@ -115,7 +138,7 @@ export default function createClient<Paths extends {}, Media extends MediaType =
   const clientId = clientIds.get(client) ?? lastId++;
   clientIds.set(client, clientId);
 
-  const queryFn = async <Method extends HttpMethod, Path extends PathsWithMethod<Paths, Method>>({
+  const innerQueryFn = async <Method extends HttpMethod, Path extends PathsWithMethod<Paths, Method>>({
     queryKey: [_clientId, method, path, init],
     signal,
   }: QueryFunctionContext<QueryKey<Paths, Method, Path>>) => {
@@ -128,18 +151,45 @@ export default function createClient<Paths extends {}, Media extends MediaType =
     return data;
   };
 
-  const queryOptions: QueryOptionsFunction<Paths, Media> = (method, path, ...[init, options]) => ({
-    queryKey: [clientId, method, path, init as InitWithUnknowns<typeof init>] as const,
-    queryFn,
-    ...options,
-  });
+  const queryOptions: QueryOptionsFunction<Paths, Media> = (method, path, options) => {
+    const { init, transformInit, transformQueryOptions } = options ?? {};
+    const queryKey = [clientId, method, path, init] as Parameters<
+      NonNullable<typeof transformQueryOptions>
+    >[0]["queryKey"];
+
+    const queryFn: typeof innerQueryFn = transformInit
+      ? (context) =>
+          innerQueryFn({
+            ...context,
+            queryKey: [clientId, method, path, transformInit((init ?? {}) as InitWithUnknowns<typeof init>)],
+          })
+      : innerQueryFn;
+
+    return {
+      queryKey,
+      queryFn,
+      ...transformQueryOptions?.({ queryKey, queryFn }),
+    };
+  };
 
   return {
     queryOptions,
     useQuery: (method, path, ...[init, options, queryClient]) =>
-      useQuery(queryOptions(method, path, init as InitWithUnknowns<typeof init>, options), queryClient),
+      useQuery(
+        queryOptions(method, path, {
+          init: init as InitWithUnknowns<typeof init>,
+          transformQueryOptions: () => options as any,
+        }),
+        queryClient,
+      ),
     useSuspenseQuery: (method, path, ...[init, options, queryClient]) =>
-      useSuspenseQuery(queryOptions(method, path, init as InitWithUnknowns<typeof init>, options), queryClient),
+      useSuspenseQuery(
+        queryOptions(method, path, {
+          init: init as InitWithUnknowns<typeof init>,
+          transformQueryOptions: () => options as any,
+        }),
+        queryClient,
+      ),
     useMutation: (method, path, options, queryClient) =>
       useMutation(
         {

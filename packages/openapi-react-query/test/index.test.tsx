@@ -106,9 +106,11 @@ describe("client", () => {
 
       const data = await queryClient.fetchQuery(
         client.queryOptions("get", "/blogposts/{post_id}", {
-          params: {
-            path: {
-              post_id: "1",
+          init: {
+            params: {
+              path: {
+                post_id: "1",
+              },
             },
           },
         }),
@@ -135,16 +137,20 @@ describe("client", () => {
                 client.queryOptions("get", "/string-array"),
                 client.queryOptions("get", "/string-array", {}),
                 client.queryOptions("get", "/blogposts/{post_id}", {
-                  params: {
-                    path: {
-                      post_id: "1",
+                  init: {
+                    params: {
+                      path: {
+                        post_id: "1",
+                      },
                     },
                   },
                 }),
                 client.queryOptions("get", "/blogposts/{post_id}", {
-                  params: {
-                    path: {
-                      post_id: "2",
+                  init: {
+                    params: {
+                      path: {
+                        post_id: "2",
+                      },
                     },
                   },
                 }),
@@ -175,7 +181,7 @@ describe("client", () => {
       expectTypeOf(result.current[3]).toEqualTypeOf<(typeof result.current)[2]>();
 
       // Generated different queryKey for each query.
-      expect(queryClient.isFetching()).toBe(4);
+      expect(queryClient.isFetching()).toBe(3);
     });
 
     it("returns query options that can be passed to useQuery", async () => {
