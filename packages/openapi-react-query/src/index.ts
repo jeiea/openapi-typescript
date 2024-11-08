@@ -16,12 +16,12 @@ import type { HttpMethod, MediaType, PathsWithMethod, RequiredKeysOf } from "ope
 type InitWithUnknowns<Init> = Init & { [key: string]: unknown };
 
 export type QueryKey<
-  Paths extends Record<string, Record<HttpMethod, {}>>,
+  Paths extends Record<string, Record<HttpMethod, object>>,
   Method extends HttpMethod,
   Path extends PathsWithMethod<Paths, Method>,
 > = readonly [number, Method, Path, MaybeOptionalInit<Paths[Path], Method>];
 
-export type QueryOptionsFunction<Paths extends Record<string, Record<HttpMethod, {}>>, Media extends MediaType> = <
+export type QueryOptionsFunction<Paths extends Record<string, Record<HttpMethod, object>>, Media extends MediaType> = <
   Method extends HttpMethod,
   Path extends PathsWithMethod<Paths, Method>,
   Init extends MaybeOptionalInit<Paths[Path], Method>,
@@ -48,7 +48,7 @@ export type QueryOptionsFunction<Paths extends Record<string, Record<HttpMethod,
   }
 >;
 
-export type UseQueryMethod<Paths extends Record<string, Record<HttpMethod, {}>>, Media extends MediaType> = <
+export type UseQueryMethod<Paths extends Record<string, Record<HttpMethod, object>>, Media extends MediaType> = <
   Method extends HttpMethod,
   Path extends PathsWithMethod<Paths, Method>,
   Init extends MaybeOptionalInit<Paths[Path], Method>,
@@ -65,7 +65,10 @@ export type UseQueryMethod<Paths extends Record<string, Record<HttpMethod, {}>>,
     : [InitWithUnknowns<Init>, Options?, QueryClient?]
 ) => UseQueryResult<Response["data"], Response["error"]>;
 
-export type UseSuspenseQueryMethod<Paths extends Record<string, Record<HttpMethod, {}>>, Media extends MediaType> = <
+export type UseSuspenseQueryMethod<
+  Paths extends Record<string, Record<HttpMethod, object>>,
+  Media extends MediaType,
+> = <
   Method extends HttpMethod,
   Path extends PathsWithMethod<Paths, Method>,
   Init extends MaybeOptionalInit<Paths[Path], Method>,
@@ -82,7 +85,7 @@ export type UseSuspenseQueryMethod<Paths extends Record<string, Record<HttpMetho
     : [InitWithUnknowns<Init>, Options?, QueryClient?]
 ) => UseSuspenseQueryResult<Response["data"], Response["error"]>;
 
-export type UseMutationMethod<Paths extends Record<string, Record<HttpMethod, {}>>, Media extends MediaType> = <
+export type UseMutationMethod<Paths extends Record<string, Record<HttpMethod, object>>, Media extends MediaType> = <
   Method extends HttpMethod,
   Path extends PathsWithMethod<Paths, Method>,
   Init extends MaybeOptionalInit<Paths[Path], Method>,

@@ -28,7 +28,7 @@ type minimalGetPaths = {
   // With some parameters (makes init required) and different responses.
   "/bar": {
     get: {
-      parameters: { query: {} };
+      parameters: { query: object };
       responses: {
         200: { content: { "application/json": "bar 200" } };
         500: { content: { "application/json": "bar 500" } };
