@@ -21,6 +21,8 @@ export type QueryKey<
   Path extends PathsWithMethod<Paths, Method>,
 > = readonly [number, Method, Path, MaybeOptionalInit<Paths[Path], Method>];
 
+const s = Symbol();
+
 export type QueryOptionsFunction<Paths extends Record<string, Record<HttpMethod, object>>, Media extends MediaType> = <
   Method extends HttpMethod,
   Path extends PathsWithMethod<Paths, Method>,
@@ -41,20 +43,16 @@ export type QueryOptionsFunction<Paths extends Record<string, Record<HttpMethod,
         SkipToken | undefined
       >;
     }) => Omit<
-      UseQueryOptions<Response["data"], Response["error"], Response["data"], QueryKey<Paths, Method, Path>>,
+      Partial<UseQueryOptions<Response["data"], Response["error"], Response["data"], QueryKey<Paths, Method, Path>>>,
       "queryFn"
     > & {
       queryFn?: Exclude<
-        UseQueryOptions<
-          Response["data"],
-          Response["error"],
-          Response["data"],
-          QueryKey<Paths, Method, Path>
-        >["queryFn"],
+        UseQueryOptions<T, Response["error"], T, QueryKey<Paths, Method, Path>>["queryFn"],
         SkipToken | undefined
       >;
     };
   },
+  T,
 >(
   method: Method,
   path: Path,
@@ -65,7 +63,20 @@ export type QueryOptionsFunction<Paths extends Record<string, Record<HttpMethod,
     "queryFn"
   > & {
     queryFn: Exclude<
-      UseQueryOptions<Response["data"], Response["error"], Response["data"], QueryKey<Paths, Method, Path>>["queryFn"],
+      UseQueryOptions<
+        Options extends { transformQueryOptions: infer Transform }
+          ? Transform extends (...args: unknown[]) => infer Ret
+            ? Ret
+            : Response["data"]
+          : Response["data"],
+        Response["error"],
+        Options extends { transformQueryOptions: infer Transform }
+          ? Transform extends (...args: unknown[]) => infer Ret
+            ? Ret
+            : Response["data"]
+          : Response["data"],
+        QueryKey<Paths, Method, Path>
+      >["queryFn"],
       SkipToken | undefined
     >;
   }
@@ -138,7 +149,7 @@ export default function createClient<Paths extends {}, Media extends MediaType =
   const clientId = clientIds.get(client) ?? lastId++;
   clientIds.set(client, clientId);
 
-  const innerQueryFn = async <Method extends HttpMethod, Path extends PathsWithMethod<Paths, Method>>({
+  const queryFn = async <Method extends HttpMethod, Path extends PathsWithMethod<Paths, Method>>({
     queryKey: [_clientId, method, path, init],
     signal,
   }: QueryFunctionContext<QueryKey<Paths, Method, Path>>) => {
@@ -153,22 +164,15 @@ export default function createClient<Paths extends {}, Media extends MediaType =
 
   const queryOptions: QueryOptionsFunction<Paths, Media> = (method, path, options) => {
     const { init, transformInit, transformQueryOptions } = options ?? {};
-    const queryKey = [clientId, method, path, init] as Parameters<
+    const finalInit = transformInit ? transformInit(init as InitWithUnknowns<typeof init>) : init;
+    const queryKey = [clientId, method, path, finalInit] as Parameters<
       NonNullable<typeof transformQueryOptions>
     >[0]["queryKey"];
-
-    const queryFn: typeof innerQueryFn = transformInit
-      ? (context) =>
-          innerQueryFn({
-            ...context,
-            queryKey: [clientId, method, path, transformInit((init ?? {}) as InitWithUnknowns<typeof init>)],
-          })
-      : innerQueryFn;
 
     return {
       queryKey,
       queryFn,
-      ...transformQueryOptions?.({ queryKey, queryFn }),
+      ...(transformQueryOptions?.({ queryKey, queryFn }) as object),
     };
   };
 

@@ -261,6 +261,40 @@ describe("client", () => {
       // client1 and client11 have the same fetch client, so they share the same query key
       expect(queryClient.isFetching()).toBe(2);
     });
+
+    it("should be able to use middleware", async () => {
+      const fetchClient1 = createFetchClient<minimalGetPaths>({ baseUrl });
+      const client1 = createClient(fetchClient1);
+
+      useMockRequestHandler({
+        baseUrl,
+        method: "get",
+        path: "/foo",
+        status: 200,
+        body: true,
+      });
+
+      const { result } = renderHook(
+        () =>
+          useQueries({
+            queries: [
+              client1.queryOptions("get", "/foo", {
+                transformQueryOptions: () => ({ queryFn: () => null }),
+              }),
+              client1.queryOptions("get", "/foo", {
+                transformInit: () => ({ params: { query: { a: 3 } } }),
+              }),
+            ],
+          }),
+        { wrapper },
+      );
+
+      await waitFor(() => expect(result.current[0].isFetching).toBe(false));
+      await waitFor(() => expect(result.current[1].isFetching).toBe(false));
+
+      expect(result.current[0].data).toBeNull();
+      expect(result.current[1].data).toBe(true);
+    });
   });
 
   describe("useQuery", () => {
